@@ -3,6 +3,11 @@ ajax4sablejs
 
 > A tiny and sample ajax implenment for sablejs.
 
+### 0. Browser Support
+
+* IE9+
+* Other browsers
+
 ### 1. Usage
 
 Install ajax4sablejs firstly
