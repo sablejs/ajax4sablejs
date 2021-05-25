@@ -1,14 +1,14 @@
 ajax4sablejs
 ===
 
-> A tiny and sample ajax implenment for sablejs.
+> A tiny and sample ajax implenment for sablejs
 
-### 0. Browser Support
+### Browser Support
 
 * IE9+
 * Other browsers
 
-### 1. Usage
+### Usage
 
 Install ajax4sablejs firstly
 ```shell
@@ -24,7 +24,7 @@ const vm = new VM();
 ajax4sablejs(vm); // that's all!
 ```
 
-### 2. API
+### API
 
 ```javascript
 ajax({
