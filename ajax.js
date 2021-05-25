@@ -72,6 +72,7 @@ function parseHeaders(xhr) {
 /**
  * option:{
  *  url: String,
+ *  type: String,
  *  method: String,
  *  headers: Object<String, String>,
  *  data: Object<String, Any> | String | FormData,
