@@ -10,12 +10,12 @@ ajax4sablejs
 
 ### Usage
 
-Install ajax4sablejs firstly
+Install ajax4sablejs first
 ```shell
 > npm install ajax4sablejs --save
 ```
 
-then import to sablejs vm
+then import it to sablejs vm
 
 ```javascript
 const ajax4sablejs = require("ajax4sablejs");
@@ -38,7 +38,7 @@ ajax({
 });
 ```
 
-### LICENSE
+### License
 
 ajax4sablejs
 
