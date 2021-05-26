@@ -1,46 +1,4 @@
 ajax4sablejs
-===
-
-> A tiny and simple ajax implenment for sablejs
-
-### Browser Support
-
-* IE9+
-* Other browsers
-
-### Usage
-
-Install ajax4sablejs firstly
-```shell
-> npm install ajax4sablejs --save
-```
-
-then import to sablejs vm
-
-```javascript
-const ajax4sablejs = require("ajax4sablejs");
-const VM = require("sablejs/runtime")();
-const vm = new VM();
-ajax4sablejs(vm); // that's all!
-```
-
-### API
-
-```javascript
-ajax({
-    url: String,
-    type: String, // json | urlencoded | text
-    method: String, // GET | POST
-    headers: Object<String, String>,
-    data: String|JSON,
-    success: Function(response:String|JSON, headers:JSON),
-    error: Function(readyState:Number, status:Number),
-});
-```
-
-### LICENSE
-
-ajax4sablejs
 
 Copyright (c) 2020-2021 ErosZhao
 

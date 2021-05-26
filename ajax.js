@@ -1,18 +1,14 @@
 const queryString = require("querystring");
-const isOldIE = !!window.XMLHttpRequest;
+const isOldIE = !window.XMLHttpRequest;
 
 function setHeaders(xhr, headers) {
   if (!isOldIE) {
     for (let key in headers) {
       if (headers.hasOwnProperty(key)) {
-        xhr.setRequestHeader(header, headers[key]);
+        xhr.setRequestHeader(key, headers[key]);
       }
     }
   }
-}
-
-function isFormData(data) {
-  return Object.prototype.toString.call(data) === "[object FormData]";
 }
 
 function isJSON(json) {
@@ -27,10 +23,7 @@ function isJSON(json) {
 function parseData(xhr, option) {
   const { type, data } = option;
   switch (type.toLowerCase()) {
-    case "form":
-      setHeaders(xhr, { "Content-Type": "multipart/form-data" });
-      return isFormData(data) ? data : new FormData(data);
-    case "url":
+    case "urlencoded":
       setHeaders(xhr, { "Content-Type": "application/x-www-form-urlencoded" });
       return queryString.stringify(data);
     case "json":
@@ -75,7 +68,7 @@ function parseHeaders(xhr) {
  *  type: String,
  *  method: String,
  *  headers: Object<String, String>,
- *  data: Object<String, Any> | String | FormData,
+ *  data: Object<String, Any> | String,
  *  success: Function,
  *  error: Function,
  * }

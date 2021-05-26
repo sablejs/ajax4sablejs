@@ -1,22 +1,27 @@
 {
   "name": "ajax4sablejs",
   "version": "1.0.0",
-  "description": "",
+  "description": "A tiny and simple ajax implenment for sablejs",
+  "keywords": [
+    "sablejs",
+    "ajax",
+    "tiny",
+    "simple"
+  ],
   "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/sablejs/ajax4sablejs.git"
   },
-  "author": "",
-  "license": "ISC",
+  "author": "ErosZy",
   "bugs": {
     "url": "https://github.com/sablejs/ajax4sablejs/issues"
   },
   "homepage": "https://github.com/sablejs/ajax4sablejs#readme",
   "dependencies": {
     "querystring": "^0.2.1"
+  },
+  "devDependencies": {
+    "sablejs": "^1.0.2"
   }
 }
