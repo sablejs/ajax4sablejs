@@ -1,6 +1,6 @@
 {
   "name": "ajax4sablejs",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A tiny and simple ajax implenment for sablejs",
   "keywords": [
     "sablejs",
@@ -8,7 +8,7 @@
     "tiny",
     "simple"
   ],
-  "main": "index.js",
+  "main": "dist/index.js",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/sablejs/ajax4sablejs.git"
@@ -22,6 +22,9 @@
     "querystring": "^0.2.1"
   },
   "devDependencies": {
+    "@babel/core": "^7.14.3",
+    "@babel/plugin-transform-runtime": "^7.14.3",
+    "@babel/preset-env": "^7.14.2",
     "sablejs": "^1.0.2"
   }
 }

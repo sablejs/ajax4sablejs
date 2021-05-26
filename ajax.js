@@ -1,5 +1,12 @@
 const queryString = require("querystring");
-const isOldIE = !window.XMLHttpRequest;
+const match = navigator.userAgent.match(/msie\s+(\d+?).\d/i);
+let isOldIE = false;
+if (match != null) {
+  const version = parseInt(match[1]);
+  if (version < 10) {
+    isOldIE = true;
+  }
+}
 
 function setHeaders(xhr, headers) {
   if (!isOldIE) {
@@ -82,10 +89,6 @@ module.exports = (option) => {
     throw new Error('Parameter "url" is required.');
   }
 
-  if (!option.method) {
-    throw new Error('Parameter "method" is required.');
-  }
-
   let xhr = null;
   if (window.XMLHttpRequest) {
     xhr = new XMLHttpRequest();
@@ -95,7 +98,7 @@ module.exports = (option) => {
     throw new Error("Not support this browser version");
   }
 
-  xhr.open(option.method.toLowerCase(), option.url, true);
+  xhr.open((option.method || "GET").toLowerCase(), option.url, true);
 
   let data = null;
   if (option.data) {
