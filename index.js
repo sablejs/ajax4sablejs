@@ -104,7 +104,6 @@ module.exports = (vm) => {
       };
     }
 
-    debugger;
     ajax(option);
     return vm.createUndefined();
   });
