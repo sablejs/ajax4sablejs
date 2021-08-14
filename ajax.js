@@ -9,7 +9,7 @@ if (match != null) {
 }
 
 function setHeaders(xhr, headers) {
-  if (!isOldIE) {
+  if (xhr) {
     for (let key in headers) {
       if (headers.hasOwnProperty(key)) {
         xhr.setRequestHeader(key, headers[key]);
@@ -43,10 +43,6 @@ function parseData(xhr, option) {
 
 function parseHeaders(xhr) {
   const headers = {};
-  if (isOldIE) {
-    return headers;
-  }
-
   const rawHeaders = xhr.getAllResponseHeaders();
   if (!rawHeaders) {
     return headers;
@@ -69,9 +65,167 @@ function parseHeaders(xhr) {
   return headers;
 }
 
+function sendViaXMLHttpRequest(option) {
+  let xhr = new XMLHttpRequest();
+  xhr.open((option.method || "GET").toLowerCase(), option.url, true);
+
+  let data = null;
+  if (option.data) {
+    data = parseData(xhr, option);
+  }
+
+  if (option.headers) {
+    setHeaders(xhr, option.headers);
+  }
+
+  xhr.onload = () => {
+    if (xhr.readyState === 4 && xhr.status === 200) {
+      let response = xhr.response || xhr.responseText;
+      try {
+        response = JSON.parse(response);
+      } finally {
+        if (typeof option.success === "function") {
+          option.success(response, parseHeaders(xhr));
+        }
+      }
+    } else {
+      xhr.onerror();
+    }
+  };
+
+  xhr.onerror = () => {
+    if (typeof option.error === "function") {
+      option.error(xhr.readyState, xhr.status);
+    }
+  };
+
+  xhr.send(data);
+}
+
+let idx = 0;
+function sendViaCrossDomainIFrame(option) {
+  const id = idx++;
+  let iframe = document.createElement("iframe");
+  iframe.onload = iframe.onerror = () => {
+    const $window = iframe.contentWindow;
+    $window.postMessage(`
+      window.ajax = function(option){
+        var xhr = new XMLHttpRequest();
+        xhr.open(option.method, option.url, true);
+
+        var headers = option.headers;
+        if(headers){
+          for (var key in headers) {
+            if (headers.hasOwnProperty(key)) {
+              xhr.setRequestHeader(key, headers[key]);
+            }
+          }
+        }
+
+        xhr.onload = function(){
+          if(xhr.readyState === 4 && xhr.status === 200){
+            parent.postMessage(JSON.stringify({
+              id: option.id,
+              type: "success",
+              data: {
+                response: xhr.response || xhr.responseText,
+                headers: {},
+              }
+            }), "*");
+          }else{
+            xhr.onerror();
+          }
+        }
+
+        xhr.onerror = function(){
+          parent.postMessage(JSON.stringify({
+            id: option.id,
+            type: "error",
+            data: {
+              readyState: xhr.readyState,
+              status: xhr.status,
+            }
+          }), "*");
+        }
+
+        xhr.send(option.data);
+      }
+    `, "*");
+
+    let data = null;
+    if (option.data) {
+      data = parseData(null, option);
+    }
+
+    const headers = {
+      ...(option.headers || {}),
+    };
+
+    const { type } = option;
+    switch (type.toLowerCase()) {
+      case "urlencoded":
+        headers["Content-Type"] = "application/x-www-form-urlencoded";
+      case "json":
+        headers["Content-Type"] = "application/json";
+    }
+
+    $window.postMessage(`
+      ajax(${JSON.stringify({
+      id,
+      url: option.url || "",
+      type: type || "text",
+      method: (option.method || "GET").toLowerCase(),
+      headers,
+      data,
+    })});
+    `, "*");
+  };
+
+
+  iframe.src = option.xdrURL || option.url;
+  iframe.width = "1px";
+  iframe.height = "1px";
+  iframe.seamless = true;
+  iframe.style.position = "absolute";
+  iframe.style.top = "-9999px";
+  iframe.style.left = "-9999px";
+  document.body.appendChild(iframe);
+
+  window.addEventListener("message", onMessageHandler);
+  function onMessageHandler(e) {
+    const data = JSON.parse(e.data || "");
+    if (data.id !== id) {
+      return;
+    }
+
+    iframe.parentNode.removeChild(iframe);
+    window.removeEventListener("message", onMessageHandler);
+    iframe.onload = null;
+    iframe.onerror = null;
+    iframe = null;
+
+    const { type } = data;
+    if (type === "success") {
+      let { response, headers } = data.data;
+      try {
+        response = JSON.parse(response);
+      } finally {
+        if (typeof option.success === "function") {
+          option.success(response, headers);
+        }
+      }
+    } else {
+      if (typeof option.error === "function") {
+        option.error(data.data.readyState, data.data.status);
+      }
+    }
+  }
+}
+
 /**
  * option:{
  *  url: String,
+ *  xdrURL: String,
  *  type: String,
  *  method: String,
  *  headers: Object<String, String>,
@@ -89,51 +243,9 @@ module.exports = (option) => {
     throw new Error('Parameter "url" is required.');
   }
 
-  let xhr = null;
-  if (window.XMLHttpRequest) {
-    xhr = new XMLHttpRequest();
-  } else if (window.XDomainRequest) {
-    xhr = new XDomainRequest();
-  } else {
-    throw new Error("Not support this browser version");
-  }
-
-  xhr.open((option.method || "GET").toLowerCase(), option.url, true);
-
-  let data = null;
-  if (option.data) {
-    data = parseData(xhr, option);
-  }
-
   if (!isOldIE) {
-    if (option.headers) {
-      setHeaders(xhr, option.headers);
-    }
+    sendViaXMLHttpRequest(option);
+  } else {
+    sendViaCrossDomainIFrame(option);
   }
-
-  xhr.onload = () => {
-    if (isOldIE || (xhr.readyState === 4 && xhr.status === 200)) {
-      let response = !isOldIE ? xhr.response : xhr.responseText;
-      try {
-        response = JSON.parse(response);
-      } catch (e) {
-        // nothing to do...
-      }
-      if (typeof option.success === "function") {
-        option.success(response, parseHeaders(xhr));
-      }
-    } else {
-      if (typeof option.error === "function") {
-        option.error(xhr.readyState, xhr.status);
-      }
-    }
-  };
-
-  xhr.onerror = () => {
-    if (typeof option.error === "function") {
-      option.error(xhr.readyState, xhr.status);
-    }
-  };
-
-  xhr.send(data);
 };

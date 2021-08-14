@@ -59,6 +59,7 @@ module.exports = (vm) => {
   const vAjax = vm.createFunction("ajax", function (vOption) {
     const option = {};
     const vUrl = vm.getProperty(vOption, "url");
+    const vXdrURL = vm.getProperty(vOption, "xdrURL");
     const vType = vm.getProperty(vOption, "type");
     const vMethod = vm.getProperty(vOption, "method");
     const vHeaders = vm.getProperty(vOption, "headers");
@@ -67,6 +68,10 @@ module.exports = (vm) => {
     const vError = vm.getProperty(vOption, "error");
     if (vm.isString(vUrl)) {
       option.url = vm.asString(vUrl);
+    }
+
+    if (vm.isString(vXdrURL)) {
+      option.xdrURL = vm.asString(vXdrURL);
     }
 
     if (vm.isString(vType)) {
@@ -110,3 +115,5 @@ module.exports = (vm) => {
 
   vm.setProperty(global, "ajax", vAjax);
 };
+
+module.exports.ajax = ajax;
