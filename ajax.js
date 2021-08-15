@@ -83,6 +83,8 @@ function sendViaXMLHttpRequest(option) {
       let response = xhr.response || xhr.responseText;
       try {
         response = JSON.parse(response);
+      } catch {
+        // nothing to do...
       } finally {
         if (typeof option.success === "function") {
           option.success(response, parseHeaders(xhr));
@@ -110,6 +112,8 @@ function sendViaXDomainRequest(option) {
     let response = xhr.response || xhr.responseText;
     try {
       response = JSON.parse(response);
+    } catch {
+      // nothing to do...
     } finally {
       if (typeof option.success === "function") {
         option.success(response, {});
@@ -127,55 +131,124 @@ function sendViaXDomainRequest(option) {
 }
 
 let idx = 0;
+let iframe = null;
+let proxy = null;
+let options = [];
 function sendViaCrossDomainIFrame(option) {
-  const id = idx++;
-  let iframe = document.createElement("iframe");
-  iframe.onload = iframe.onerror = () => {
-    const $window = iframe.contentWindow;
-    $window.postMessage(`
-      window.ajax = function(option){
-        var xhr = new XMLHttpRequest();
-        xhr.open(option.method, option.url, true);
+  option.id = idx++;
+  options.push(option);
+  if (proxy == null) {
+    if (iframe) {
+      return;
+    }
 
-        var headers = option.headers;
-        if(headers){
-          for (var key in headers) {
-            if (headers.hasOwnProperty(key)) {
-              xhr.setRequestHeader(key, headers[key]);
+    iframe = document.createElement("iframe");
+    iframe.onload = () => {
+      proxy = iframe.contentWindow;
+      proxy.postMessage(`
+        window.ajax = function(option){
+          var xhr = new XMLHttpRequest();
+          xhr.open(option.method, option.url, true);
+  
+          var headers = option.headers;
+          if(headers){
+            for (var key in headers) {
+              if (headers.hasOwnProperty(key)) {
+                xhr.setRequestHeader(key, headers[key]);
+              }
             }
           }
-        }
-
-        xhr.onload = function(){
-          if(xhr.readyState === 4 && xhr.status === 200){
+  
+          xhr.onload = function(){
+            if(xhr.readyState === 4 && xhr.status === 200){
+              parent.postMessage(JSON.stringify({
+                id: option.id,
+                type: "success",
+                data: {
+                  response: xhr.response || xhr.responseText,
+                  headers: {},
+                }
+              }), "*");
+            }else{
+              xhr.onerror();
+            }
+          }
+  
+          xhr.onerror = function(){
             parent.postMessage(JSON.stringify({
               id: option.id,
-              type: "success",
+              type: "error",
               data: {
-                response: xhr.response || xhr.responseText,
-                headers: {},
+                readyState: xhr.readyState,
+                status: xhr.status,
               }
             }), "*");
-          }else{
-            xhr.onerror();
           }
+  
+          xhr.send(option.data);
         }
+      `, "*");
 
-        xhr.onerror = function(){
-          parent.postMessage(JSON.stringify({
-            id: option.id,
-            type: "error",
-            data: {
-              readyState: xhr.readyState,
-              status: xhr.status,
-            }
-          }), "*");
-        }
-
-        xhr.send(option.data);
+      for (let i = 0; i < options.length; i++) {
+        postData(options[i])
       }
-    `, "*");
+    };
 
+    iframe.onerror = () => {
+      for (let i = 0; i < options.length; i++) {
+        const { error } = options[i];
+        if (typeof error === "function") {
+          error(-1, -1);
+        }
+      }
+
+      iframe = null;
+      options = [];
+    };
+
+    iframe.src = option.xdrURL || option.url;
+    iframe.width = "1px";
+    iframe.height = "1px";
+    iframe.seamless = true;
+    iframe.style.position = "absolute";
+    iframe.style.top = "-9999px";
+    iframe.style.left = "-9999px";
+    document.body.appendChild(iframe);
+  } else {
+    postData(option)
+  }
+
+  window.addEventListener("message", function (e) {
+    const data = JSON.parse(e.data || "");
+    const index = options.map(v => v.id).indexOf(data.id);
+    if (index == -1) {
+      return;
+    }
+
+
+    const { type } = data;
+    const { success, error } = options[index];
+    options.splice(index, 1);
+
+    if (type === "success") {
+      let { response, headers } = data.data;
+      try {
+        response = JSON.parse(response);
+      } catch {
+        // nothing to do...
+      } finally {
+        if (typeof success === "function") {
+          success(response, headers);
+        }
+      }
+    } else {
+      if (typeof error === "function") {
+        error(data.data.readyState, data.data.status);
+      }
+    }
+  });
+
+  function postData(option) {
     let data = null;
     if (option.data) {
       data = parseData(null, option);
@@ -189,13 +262,15 @@ function sendViaCrossDomainIFrame(option) {
     switch (type.toLowerCase()) {
       case "urlencoded":
         headers["Content-Type"] = "application/x-www-form-urlencoded";
+        break;
       case "json":
         headers["Content-Type"] = "application/json";
+        break;
     }
 
-    $window.postMessage(`
+    proxy.postMessage(`
       ajax(${JSON.stringify({
-      id,
+      id: option.id,
       url: option.url || "",
       type: type || "text",
       method: (option.method || "GET").toLowerCase(),
@@ -203,46 +278,6 @@ function sendViaCrossDomainIFrame(option) {
       data,
     })});
     `, "*");
-  };
-
-
-  iframe.src = option.xdrURL || option.url;
-  iframe.width = "1px";
-  iframe.height = "1px";
-  iframe.seamless = true;
-  iframe.style.position = "absolute";
-  iframe.style.top = "-9999px";
-  iframe.style.left = "-9999px";
-  document.body.appendChild(iframe);
-
-  window.addEventListener("message", onMessageHandler);
-  function onMessageHandler(e) {
-    const data = JSON.parse(e.data || "");
-    if (data.id !== id) {
-      return;
-    }
-
-    iframe.parentNode.removeChild(iframe);
-    window.removeEventListener("message", onMessageHandler);
-    iframe.onload = null;
-    iframe.onerror = null;
-    iframe = null;
-
-    const { type } = data;
-    if (type === "success") {
-      let { response, headers } = data.data;
-      try {
-        response = JSON.parse(response);
-      } finally {
-        if (typeof option.success === "function") {
-          option.success(response, headers);
-        }
-      }
-    } else {
-      if (typeof option.error === "function") {
-        option.error(data.data.readyState, data.data.status);
-      }
-    }
   }
 }
 
@@ -271,7 +306,7 @@ module.exports = (option) => {
     sendViaXMLHttpRequest(option);
   } else {
     const method = (option.method || 'GET').toLowerCase();
-    if (method === "get") {
+    if (method === "get" && !option.xdrURL) {
       sendViaXDomainRequest(option);
     } else {
       sendViaCrossDomainIFrame(option);
