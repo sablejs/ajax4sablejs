@@ -102,6 +102,30 @@ function sendViaXMLHttpRequest(option) {
   xhr.send(data);
 }
 
+function sendViaXDomainRequest(option) {
+  const xhr = new XDomainRequest();
+  xhr.open('get', option.url, true);
+
+  xhr.onload = () => {
+    let response = xhr.response || xhr.responseText;
+    try {
+      response = JSON.parse(response);
+    } finally {
+      if (typeof option.success === "function") {
+        option.success(response, {});
+      }
+    }
+  };
+
+  xhr.onerror = () => {
+    if (typeof option.error === "function") {
+      option.error(xhr.readyState, xhr.status);
+    }
+  };
+
+  xhr.send(null);
+}
+
 let idx = 0;
 function sendViaCrossDomainIFrame(option) {
   const id = idx++;
@@ -246,6 +270,11 @@ module.exports = (option) => {
   if (!isOldIE) {
     sendViaXMLHttpRequest(option);
   } else {
-    sendViaCrossDomainIFrame(option);
+    const method = (option.method || 'GET').toLowerCase();
+    if (method === "get") {
+      sendViaXDomainRequest(option);
+    } else {
+      sendViaCrossDomainIFrame(option);
+    }
   }
 };
