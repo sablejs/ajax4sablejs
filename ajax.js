@@ -67,6 +67,7 @@ function parseHeaders(xhr) {
 
 function sendViaXMLHttpRequest(option) {
   let xhr = new XMLHttpRequest();
+  xhr.withCredentials = option.withCredentials || false;
   xhr.open((option.method || "GET").toLowerCase(), option.url, true);
 
   let data = null;
@@ -146,8 +147,30 @@ function sendViaCrossDomainIFrame(option) {
     iframe.onload = () => {
       proxy = iframe.contentWindow;
       proxy.postMessage(`
+        function parseHeaders(xhr) {
+          var headers = {};
+          var rawHeaders = xhr.getAllResponseHeaders();
+          if (!rawHeaders) {
+            return headers;
+          }
+        
+          var headerPairs = rawHeaders.split("\u000d\u000a");
+          for (var i = 0; i < headerPairs.length; i++) {
+            var headerPair = headerPairs[i];
+            var index = headerPair.indexOf("\u003a\u0020");
+            if (index > 0) {
+              var key = headerPair.substring(0, index);
+              var val = headerPair.substring(index + 2);
+              headers[key] = val;
+            }
+          }
+        
+          return headers;
+        }
+
         window.ajax = function(option){
           var xhr = new XMLHttpRequest();
+          xhr.withCredentials = ${option.withCredentials || false};
           xhr.open(option.method, option.url, true);
   
           var headers = option.headers;
@@ -166,7 +189,7 @@ function sendViaCrossDomainIFrame(option) {
                 type: "success",
                 data: {
                   response: xhr.response || xhr.responseText,
-                  headers: {},
+                  headers: parseHeaders(xhr),
                 }
               }), "*");
             }else{
@@ -287,6 +310,7 @@ function sendViaCrossDomainIFrame(option) {
  *  xdrURL: String,
  *  type: String,
  *  method: String,
+ *  withCredentials: Boolean,
  *  headers: Object<String, String>,
  *  data: Object<String, Any> | String,
  *  success: Function,
