@@ -62,6 +62,8 @@ module.exports = (vm) => {
     const vXdrURL = vm.getProperty(vOption, "xdrURL");
     const vType = vm.getProperty(vOption, "type");
     const vMethod = vm.getProperty(vOption, "method");
+    const vWithCredentials = vm.getProperty(vOption, "withCredentials");
+    const vJSONP = vm.getProperty(vOption, "jsonp");
     const vHeaders = vm.getProperty(vOption, "headers");
     const vData = vm.getProperty(vOption, "data");
     const vSuccess = vm.getProperty(vOption, "success");
@@ -80,6 +82,16 @@ module.exports = (vm) => {
 
     if (vm.isString(vMethod)) {
       option.method = vm.asString(vMethod);
+    }
+
+    if (vm.isBoolean(vWithCredentials)) {
+      option.withCredentials = vm.asBoolean(vWithCredentials);
+    }
+
+    if (vm.isString(vJSONP)) {
+      option.jsonp = vm.asString(vJSONP);
+    }else if (vm.isBoolean(vJSONP)) {
+      option.jsonp = vm.asBoolean(vJSONP);
     }
 
     if (vm.isObject(vHeaders)) {

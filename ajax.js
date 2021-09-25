@@ -28,7 +28,7 @@ function isJSON(json) {
 }
 
 function parseData(xhr, option) {
-  const { type, data } = option;
+  const { type = "", data } = option;
   switch (type.toLowerCase()) {
     case "urlencoded":
       setHeaders(xhr, { "Content-Type": "application/x-www-form-urlencoded" });
@@ -63,6 +63,38 @@ function parseHeaders(xhr) {
   }
 
   return headers;
+}
+
+function sendViaJSONPRequest(option) {
+  const _j = typeof option.jsonp === "string" ? option.jsonp : `_J${Date.now()}`;
+  let { url } = option;
+  if (url.lastIndexOf("?") > -1) {
+    url += `&_j=${_j}`;
+  } else {
+    url += `?_j=${_j}`;
+  }
+
+  window[_j] = (data = {}) => {
+    window[_j] = null;
+    delete window[_j];
+    if (typeof option.success === "function") {
+      option.success(data, {});
+    }
+  };
+
+  const script = document.createElement("script");
+  script.src = url;
+  script.onload = () => document.body.removeChild(script);
+  script.onerror = () => {
+    window[_j] = null;
+    delete window[_j];
+    document.body.removeChild(script);
+    if (typeof option.error === "function") {
+      option.error();
+    }
+  };
+
+  document.body.appendChild(script);
 }
 
 function sendViaXMLHttpRequest(option) {
@@ -107,7 +139,7 @@ function sendViaXMLHttpRequest(option) {
 
 function sendViaXDomainRequest(option) {
   const xhr = new XDomainRequest();
-  xhr.open('get', option.url, true);
+  xhr.open("get", option.url, true);
 
   xhr.onload = () => {
     let response = xhr.response || xhr.responseText;
@@ -146,28 +178,8 @@ function sendViaCrossDomainIFrame(option) {
     iframe = document.createElement("iframe");
     iframe.onload = () => {
       proxy = iframe.contentWindow;
-      proxy.postMessage(`
-        function parseHeaders(xhr) {
-          var headers = {};
-          var rawHeaders = xhr.getAllResponseHeaders();
-          if (!rawHeaders) {
-            return headers;
-          }
-        
-          var headerPairs = rawHeaders.split("\u000d\u000a");
-          for (var i = 0; i < headerPairs.length; i++) {
-            var headerPair = headerPairs[i];
-            var index = headerPair.indexOf("\u003a\u0020");
-            if (index > 0) {
-              var key = headerPair.substring(0, index);
-              var val = headerPair.substring(index + 2);
-              headers[key] = val;
-            }
-          }
-        
-          return headers;
-        }
-
+      proxy.postMessage(
+        `
         window.ajax = function(option){
           var xhr = new XMLHttpRequest();
           xhr.withCredentials = ${option.withCredentials || false};
@@ -189,7 +201,7 @@ function sendViaCrossDomainIFrame(option) {
                 type: "success",
                 data: {
                   response: xhr.response || xhr.responseText,
-                  headers: parseHeaders(xhr),
+                  headers: {},
                 }
               }), "*");
             }else{
@@ -210,10 +222,12 @@ function sendViaCrossDomainIFrame(option) {
   
           xhr.send(option.data);
         }
-      `, "*");
+      `,
+        "*"
+      );
 
       for (let i = 0; i < options.length; i++) {
-        postData(options[i])
+        postData(options[i]);
       }
     };
 
@@ -238,16 +252,15 @@ function sendViaCrossDomainIFrame(option) {
     iframe.style.left = "-9999px";
     document.body.appendChild(iframe);
   } else {
-    postData(option)
+    postData(option);
   }
 
   window.addEventListener("message", function (e) {
     const data = JSON.parse(e.data || "");
-    const index = options.map(v => v.id).indexOf(data.id);
+    const index = options.map((v) => v.id).indexOf(data.id);
     if (index == -1) {
       return;
     }
-
 
     const { type } = data;
     const { success, error } = options[index];
@@ -281,7 +294,7 @@ function sendViaCrossDomainIFrame(option) {
       ...(option.headers || {}),
     };
 
-    const { type } = option;
+    const { type = "" } = option;
     switch (type.toLowerCase()) {
       case "urlencoded":
         headers["Content-Type"] = "application/x-www-form-urlencoded";
@@ -291,16 +304,19 @@ function sendViaCrossDomainIFrame(option) {
         break;
     }
 
-    proxy.postMessage(`
+    proxy.postMessage(
+      `
       ajax(${JSON.stringify({
-      id: option.id,
-      url: option.url || "",
-      type: type || "text",
-      method: (option.method || "GET").toLowerCase(),
-      headers,
-      data,
-    })});
-    `, "*");
+        id: option.id,
+        url: option.url || "",
+        type: type || "text",
+        method: (option.method || "GET").toLowerCase(),
+        headers,
+        data,
+      })});
+    `,
+      "*"
+    );
   }
 }
 
@@ -326,10 +342,12 @@ module.exports = (option) => {
     throw new Error('Parameter "url" is required.');
   }
 
-  if (!isOldIE) {
+  if (option.jsonp) {
+    sendViaJSONPRequest(option);
+  } else if (!isOldIE) {
     sendViaXMLHttpRequest(option);
   } else {
-    const method = (option.method || 'GET').toLowerCase();
+    const method = (option.method || "GET").toLowerCase();
     if (method === "get" && !option.xdrURL) {
       sendViaXDomainRequest(option);
     } else {
