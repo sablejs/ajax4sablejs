@@ -1,6 +1,6 @@
 {
   "name": "ajax4sablejs",
-  "version": "1.1.5",
+  "version": "1.1.6",
   "description": "A tiny and simple ajax implenment for sablejs",
   "keywords": [
     "sablejs",
